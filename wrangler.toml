@@ -1,21 +1,36 @@
-name = "genidoc-hayat-api"
+﻿name = "genidoc-hayat-api"
 main = "backend/src/worker.js"
 compatibility_date = "2024-12-16"
+
+# Default environment
+[[d1_databases]]
+binding = "DB"
+database_name = "genidoc-hayat"
+database_id = "9b504255-62af-42fe-a15b-7b63caa3cee9"
+preview_database_id = "b357b1cf-bb94-424a-aeb1-9fc8f79cc6a8"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "024d096e9edc4573ac6d38784ae34465"
+preview_id = "b0cadf06960040f6aedb6d9544a1852a"
+
+[vars]
+ENVIRONMENT = "production"
+JWT_SECRET = "CHANGE_IN_CLOUDFLARE_DASHBOARD"
+JWT_REFRESH_SECRET = "CHANGE_IN_CLOUDFLARE_DASHBOARD"
+CORS_ORIGIN = "https://genidoc.vercel.app"
 
 [env.development]
 name = "genidoc-hayat-api-dev"
 
 [[env.development.d1_databases]]
 binding = "DB"
-database_name = "genidoc-hayat"
-database_id = "9b504255-62af-42fe-a15b-7b63caa3cee9"
-preview_database_id = "YOUR_PREVIEW_DATABASE_ID_HERE"
-remote = false
+database_name = "genidoc-hayat-dev"
+database_id = "b357b1cf-bb94-424a-aeb1-9fc8f79cc6a8"
 
 [[env.development.kv_namespaces]]
 binding = "CACHE"
-id = "YOUR_KV_ID_HERE"
-preview_id = "YOUR_KV_PREVIEW_ID_HERE"
+id = "b0cadf06960040f6aedb6d9544a1852a"
 
 [env.development.vars]
 ENVIRONMENT = "development"
@@ -25,21 +40,17 @@ CORS_ORIGIN = "http://localhost:5173"
 
 [env.production]
 name = "genidoc-hayat-api"
-routes = [
-  { pattern = "api.genidoc.ma/*", zone_name = "genidoc.ma" }
-]
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "genidoc-hayat"
 database_id = "9b504255-62af-42fe-a15b-7b63caa3cee9"
-preview_database_id = "YOUR_PREVIEW_DATABASE_ID_HERE"
-remote = true
+preview_database_id = "b357b1cf-bb94-424a-aeb1-9fc8f79cc6a8"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "YOUR_KV_ID_HERE"
-preview_id = "YOUR_KV_PREVIEW_ID_HERE"
+id = "024d096e9edc4573ac6d38784ae34465"
+preview_id = "b0cadf06960040f6aedb6d9544a1852a"
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -49,4 +60,3 @@ CORS_ORIGIN = "https://genidoc.vercel.app"
 
 [[triggers.crons]]
 cron = "0 2 * * *"
-
