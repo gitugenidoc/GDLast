@@ -8,8 +8,9 @@ name = "genidoc-hayat-api-dev"
 [[env.development.d1_databases]]
 binding = "DB"
 database_name = "genidoc-hayat"
-database_id = "YOUR_DATABASE_ID_HERE"
+database_id = "9b504255-62af-42fe-a15b-7b63caa3cee9"
 preview_database_id = "YOUR_PREVIEW_DATABASE_ID_HERE"
+remote = false
 
 [[env.development.kv_namespaces]]
 binding = "CACHE"
@@ -31,8 +32,9 @@ routes = [
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "genidoc-hayat"
-database_id = "YOUR_DATABASE_ID_HERE"
+database_id = "9b504255-62af-42fe-a15b-7b63caa3cee9"
 preview_database_id = "YOUR_PREVIEW_DATABASE_ID_HERE"
+remote = true
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
