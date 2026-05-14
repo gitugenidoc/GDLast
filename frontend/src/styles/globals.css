@@ -72,7 +72,7 @@
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center px-6 py-2 rounded-lg font-title-m transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-2 rounded-lg text-title-m transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {

@@ -1,6 +1,6 @@
 // frontend/src/pages/NotFound.jsx - 404 Page
 
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 export default function NotFound() {
   return (

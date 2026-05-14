@@ -1,6 +1,6 @@
 // frontend/src/app/router.jsx - React Router configuration
 
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router-dom";
 import NotFound from "../pages/NotFound";
 import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";

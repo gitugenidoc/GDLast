@@ -1,6 +1,6 @@
 // frontend/src/app/App.jsx - Root React component
 
-import { RouterProvider } from "react-router";
+import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { AuthProvider } from "../features/auth/context/AuthContext";
 
