@@ -1,0 +1,182 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main, production]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "18"
+
+jobs:
+  # Test and Build
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm run test --if-present
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+
+      - name: Build backend
+        run: cd backend && npm run build --if-present
+
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist
+
+  # Deploy Frontend to Vercel
+  deploy-frontend:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download frontend artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Deploy to Vercel
+        run: |
+          npm i -g vercel
+          vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # Deploy Backend to Cloudflare
+  deploy-backend:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Download backend artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist
+
+      - name: Deploy to Cloudflare
+        run: |
+          cd backend
+          wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Database Migrations
+  database-migrate:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Run database migrations
+        run: |
+          cd backend
+          wrangler d1 migrations apply genidoc-db --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # Smoke Tests
+  smoke-tests:
+    needs: [deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/production'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Test Frontend Health
+        run: curl -f https://app.genidoc-hayat.com/health || exit 1
+
+      - name: Test API Health
+        run: curl -f https://api.genidoc-hayat.com/health || exit 1
+
+      - name: Test API Connectivity
+        run: |
+          curl -f -H "Authorization: Bearer ${{ secrets.TEST_JWT_TOKEN }}" \
+            https://api.genidoc-hayat.com/api/patients || exit 1
+
+  # Notify Slack on Success
+  notify-success:
+    needs: [smoke-tests]
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: "✅ Production deployment successful!"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author
+
+  # Notify Slack on Failure
+  notify-failure:
+    needs: [build, deploy-frontend, deploy-backend]
+    runs-on: ubuntu-latest
+    if: failure()
+
+    steps:
+      - name: Notify Slack
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "❌ Production deployment failed!"
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author
