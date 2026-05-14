@@ -1,44 +1,27 @@
 {
   "name": "genidoc-hayat-backend",
-  "version": "0.1.0",
-  "description": "GeniDoc Hayat Backend API",
+  "version": "1.0.0",
+  "description": "GeniDoc Hayat Backend - Cloudflare Workers with Fetch API",
   "type": "module",
-  "main": "src/server.js",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "build": "echo 'Backend built'",
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "db:push": "prisma db push",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:production": "wrangler deploy --env production",
+    "build": "echo 'Cloudflare Workers - no build needed'",
+    "local": "node --watch src/server.js",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "node src/prisma/seed.js",
-    "db:studio": "prisma studio",
-    "lint": "eslint src --fix"
+    "db:migrate": "wrangler d1 migrations apply genidoc-hayat --remote"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.1.2",
-    "multer": "^1.4.5",
-    "pino": "^8.17.2",
-    "pino-http": "^8.6.1",
-    "pino-pretty": "^10.3.1",
-    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.1.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.10.6",
-    "prisma": "^5.7.1",
-    "vitest": "^1.1.0",
-    "supertest": "^6.3.3",
-    "eslint": "^8.56.0"
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "wrangler": "^3.26.0",
+    "prisma": "^5.7.1"
   },
   "engines": {
     "node": ">=18.0.0"
