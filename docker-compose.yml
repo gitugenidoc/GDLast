@@ -1,0 +1,76 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: genidoc-postgres
+    environment:
+      POSTGRES_DB: genidoc_hayat
+      POSTGRES_USER: genidoc_user
+      POSTGRES_PASSWORD: genidoc_password_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genidoc_user -d genidoc_hayat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - genidoc-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: genidoc-backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://genidoc_user:genidoc_password_dev@postgres:5432/genidoc_hayat
+      JWT_SECRET: dev_jwt_secret_not_for_production
+      JWT_REFRESH_SECRET: dev_jwt_refresh_secret_not_for_production
+      FRONTEND_URL: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/uploads:/app/uploads
+    networks:
+      - genidoc-network
+    command: npm run dev
+
+  # Frontend App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: genidoc-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+      VITE_ENV: development
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - backend
+    networks:
+      - genidoc-network
+    command: npm run dev
+
+networks:
+  genidoc-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

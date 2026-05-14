@@ -1,0 +1,506 @@
+// Prisma schema for Cloudflare D1 (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============== ENUMS (stored as TEXT in SQLite) ==============
+
+enum UserRole {
+  PARENT
+  PEDIATRICIAN
+  CLINIC_ADMIN
+  HOSPITAL_ADMIN
+  FACILITY_ADMIN
+  SUPER_ADMIN
+}
+
+enum CardStatus {
+  PENDING
+  ACTIVE
+  BLOCKED
+  EXPIRED
+}
+
+enum PermissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum DocumentType {
+  BIRTH_RECORD
+  PRESCRIPTION
+  LAB_RESULT
+  MEDICAL_REPORT
+  VACCINATION_PROOF
+  IMAGING_REPORT
+  OTHER
+}
+
+enum FacilityType {
+  CLINIC
+  HOSPITAL
+  MATERNITY
+  PRIVATE_PRACTICE
+  PUBLIC
+}
+
+enum AuditAction {
+  LOGIN
+  CONSULTATION_CREATED
+  VACCINATION_ADDED
+  DOCUMENT_UPLOADED
+  PERMISSION_REQUESTED
+  PERMISSION_APPROVED
+  CARD_SCANNED
+  EMERGENCY_ACCESS
+  FACILITY_CREATED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum PricingPlanType {
+  CARD_FEE
+  PARENT_ACCESS
+  PEDIATRICIAN_SaaS
+  FACILITY_SaaS
+  ENTERPRISE_INTEGRATION
+}
+
+// ============== MODELS ==============
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  firstName         String
+  lastName          String
+  phone             String?
+  role              UserRole
+  
+  parentProfile     ParentProfile?
+  pediatricianProfile PediatricianProfile?
+  facilityAdmin     Facility? @relation("AdminUsers")
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  
+  @@index([email])
+  @@index([role])
+}
+
+model ParentProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  newborns          Newborn[]
+  permissions       AccessPermission[]
+  notifications     Notification[]
+  subscriptions     Subscription[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PediatricianProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  licenseNumber     String?
+  specialization    String?
+  city              String?
+  facility          Facility?
+  
+  consultations     Consultation[]
+  permissions       AccessPermission[]
+  subscriptions     Subscription[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Facility {
+  id                String   @id @default(cuid())
+  name              String
+  type              FacilityType
+  city              String
+  address           String?
+  phone             String?
+  email             String?
+  
+  sihStatus         String? @default("none")
+  genidocActive     Boolean @default(true)
+  
+  adminId           String?
+  admin             User?   @relation("AdminUsers", fields: [adminId], references: [id])
+  pediatricians     PediatricianProfile[]
+  smartCards        SmartCard[]
+  subscriptions     Subscription[]
+  integrations      IntegrationConfig[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([city])
+}
+
+model Newborn {
+  id                String   @id @default(cuid())
+  genidocId         String   @unique
+  firstName         String
+  lastName          String?
+  dateOfBirth       DateTime
+  city              String?
+  gender            String?
+  bloodType         String?
+  
+  parentId          String
+  parent            ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  consultations     Consultation[]
+  vaccinations      Vaccination[]
+  growthRecords     GrowthRecord[]
+  documents         MedicalDocument[]
+  prescriptions     Prescription[]
+  appointments      Appointment[]
+  permissions       AccessPermission[] @relation("NewbornPermissions")
+  smartCard         SmartCard?
+  auditLogs         AuditLog[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([parentId])
+  @@index([genidocId])
+}
+
+model SmartCard {
+  id                String   @id @default(cuid())
+  cardNumber        String   @unique
+  qrCode            String   @unique
+  nfcCode           String?  @unique
+  
+  newbornId         String   @unique
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  status            CardStatus @default(PENDING)
+  issuedAt          DateTime
+  activatedAt       DateTime?
+  
+  facilityId        String?
+  facility          Facility? @relation(fields: [facilityId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+  @@index([status])
+}
+
+model Consultation {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  pediatricianId    String
+  pediatrician      PediatricianProfile @relation(fields: [pediatricianId], references: [id])
+  
+  reason            String
+  symptoms          String?
+  diagnosis         String?
+  notes             String?
+  recommendations   String?
+  
+  consultedAt       DateTime
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+  @@index([pediatricianId])
+}
+
+model Vaccination {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  vaccineName       String
+  vaccineCode       String?
+  status            String   @default("scheduled")
+  
+  scheduledDate     DateTime?
+  administeredDate  DateTime?
+  nextDueDate       DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+}
+
+model GrowthRecord {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  weight            Float
+  height            Float
+  headCircumference Float?
+  
+  measuredAt        DateTime
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+}
+
+model Prescription {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  medicationName    String
+  dosage            String?
+  frequency         String?
+  duration          String?
+  notes             String?
+  
+  prescribedAt      DateTime
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+}
+
+model MedicalDocument {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  fileName          String
+  fileUrl           String
+  fileType          DocumentType
+  fileSize          Int
+  
+  uploadedBy        String?
+  uploadedAt        DateTime
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+}
+
+model Appointment {
+  id                String   @id @default(cuid())
+  newbornId         String
+  newborn           Newborn  @relation(fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  scheduledAt       DateTime
+  reason            String?
+  status            String   @default("scheduled")
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([newbornId])
+  @@index([scheduledAt])
+}
+
+model AccessPermission {
+  id                String   @id @default(cuid())
+  
+  newbornId         String
+  newborn           Newborn  @relation("NewbornPermissions", fields: [newbornId], references: [id], onDelete: Cascade)
+  
+  parentId          String
+  parent            ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  pediatricianId    String
+  pediatrician      PediatricianProfile @relation(fields: [pediatricianId], references: [id], onDelete: Cascade)
+  
+  status            PermissionStatus @default(PENDING)
+  requestedAt       DateTime
+  respondedAt       DateTime?
+  expiresAt         DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([newbornId, parentId, pediatricianId])
+  @@index([status])
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  
+  action            AuditAction
+  userId            String?
+  newbornId         String?
+  newborn           Newborn? @relation(fields: [newbornId], references: [id])
+  
+  ipAddress         String?
+  userAgent         String?
+  details           String?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([userId])
+  @@index([newbornId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id                String   @id @default(cuid())
+  
+  parentId          String
+  parent            ParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  
+  title             String
+  message           String
+  type              String
+  
+  isRead            Boolean  @default(false)
+  readAt            DateTime?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([parentId])
+  @@index([isRead])
+}
+
+model PricingPlan {
+  id                String   @id @default(cuid())
+  name              String
+  type              PricingPlanType
+  
+  price             Float
+  currency          String   @default("MAD")
+  billingPeriod     String?  @default("one-time")
+  
+  description       String?
+  features          String?
+  
+  active            Boolean  @default(true)
+  
+  subscriptions     Subscription[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  
+  planId            String
+  plan              PricingPlan @relation(fields: [planId], references: [id])
+  
+  parentId          String?
+  parent            ParentProfile? @relation(fields: [parentId], references: [id])
+  
+  pediatricianId    String?
+  pediatrician      PediatricianProfile? @relation(fields: [pediatricianId], references: [id])
+  
+  facilityId        String?
+  facility          Facility? @relation(fields: [facilityId], references: [id])
+  
+  status            SubscriptionStatus @default(ACTIVE)
+  startDate         DateTime
+  endDate           DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([status])
+}
+
+model PaymentRecord {
+  id                String   @id @default(cuid())
+  subscriptionId    String
+  
+  amount            Float
+  currency          String   @default("MAD")
+  status            String   @default("pending")
+  
+  transactionId     String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model IntegrationConfig {
+  id                String   @id @default(cuid())
+  
+  facilityId        String
+  facility          Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  
+  type              String
+  endpoint          String?
+  apiKey            String?
+  active            Boolean  @default(false)
+  
+  lastSyncAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([facilityId])
+}
+
+model ApiKey {
+  id                String   @id @default(cuid())
+  key               String   @unique
+  name              String
+  
+  facilityId        String
+  
+  active            Boolean  @default(true)
+  lastUsedAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model FHIRMapping {
+  id                String   @id @default(cuid())
+  
+  internalModel     String
+  fhirResource      String
+  
+  mappingRules      String
+  
+  active            Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model WebhookEndpoint {
+  id                String   @id @default(cuid())
+  url               String
+  events            String   // JSON array of events
+  active            Boolean  @default(true)
+  secret            String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
