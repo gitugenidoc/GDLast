@@ -2,7 +2,7 @@
 main = "backend/src/worker.js"
 compatibility_date = "2024-12-16"
 
-# Default environment
+# Production environment
 [[d1_databases]]
 binding = "DB"
 database_name = "genidoc-hayat"
@@ -57,6 +57,3 @@ ENVIRONMENT = "production"
 JWT_SECRET = "CHANGE_IN_CLOUDFLARE_DASHBOARD"
 JWT_REFRESH_SECRET = "CHANGE_IN_CLOUDFLARE_DASHBOARD"
 CORS_ORIGIN = "https://genidoc.vercel.app"
-
-[[triggers.crons]]
-cron = "0 2 * * *"
